@@ -31,6 +31,7 @@ jobs:
       - name: Create output directory
         run: |
           mkdir -p output/addons/counterstrikesharp/plugins/${{ env.PROJECT_NAME }}
+          mkdir -p output/addons/counterstrikesharp/plugins/${{ env.GAMEHUD }}
           mkdir -p output/addons/counterstrikesharp/shared/${{ env.GAMEHUD_API }}
 
       - name: Copy built DLL to output folder
