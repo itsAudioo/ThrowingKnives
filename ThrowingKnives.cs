@@ -1,56 +1,45 @@
+namespace ThrowingKnives;
+
+using System.Collections.Concurrent;
+using System.Drawing;
+using System.Numerics;
+using System.Text.Json.Serialization;
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
-using CounterStrikeSharp.API.Modules.Memory;
 using CounterStrikeSharp.API.Core.Attributes;
-using CSTimer = CounterStrikeSharp.API.Modules.Timers.Timer;
-using CounterStrikeSharp.API.Modules.Timers;
-using CounterStrikeSharp.API.Modules.Entities.Constants;
 using CounterStrikeSharp.API.Core.Attributes.Registration;
-using CounterStrikeSharp.API.Modules.Memory.DynamicFunctions;
-using CounterStrikeSharp.API.Modules.Admin;
 using CounterStrikeSharp.API.Core.Capabilities;
+using CounterStrikeSharp.API.Modules.Admin;
+using CounterStrikeSharp.API.Modules.Entities.Constants;
+using CounterStrikeSharp.API.Modules.Memory;
+using CounterStrikeSharp.API.Modules.Memory.DynamicFunctions;
+using CounterStrikeSharp.API.Modules.Timers;
 using CounterStrikeSharp.API.Modules.Utils;
-using System.Text.Json.Serialization;
-using Microsoft.Extensions.Logging;
-using System.Numerics;
-using System.Drawing;
-using System.Collections.Concurrent;
-
 using CS2_GameHUDAPI;
-
-namespace ThrowingKnives;
+using Microsoft.Extensions.Logging;
+using CSTimer = CounterStrikeSharp.API.Modules.Timers.Timer;
 
 public class PluginConfig : BasePluginConfig
 {
-    [JsonPropertyName("KnifeAmount")]
-    public int KnifeAmount { get; set; } = -1;
+    [JsonPropertyName("KnifeAmount")] public int KnifeAmount { get; set; } = -1;
 
-    [JsonPropertyName("KnifeVelocity")]
-    public float KnifeVelocity { get; set; } = 2250.0f;
+    [JsonPropertyName("KnifeVelocity")] public float KnifeVelocity { get; set; } = 2250.0f;
 
-    [JsonPropertyName("KnifeDamage")]
-    public float KnifeDamage { get; set; } = 45.0f;
+    [JsonPropertyName("KnifeDamage")] public float KnifeDamage { get; set; } = 45.0f;
 
-    [JsonPropertyName("KnifeElasticity")]
-    public float KnifeElasticity { get; set; } = 0.2f;
+    [JsonPropertyName("KnifeElasticity")] public float KnifeElasticity { get; set; } = 0.2f;
 
-    [JsonPropertyName("KnifeLifetime")]
-    public float KnifeLifetime { get; set; } = 5.0f;
+    [JsonPropertyName("KnifeLifetime")] public float KnifeLifetime { get; set; } = 5.0f;
 
-    [JsonPropertyName("KnifeTrailTime")]
-    public float KnifeTrailTime { get; set; } = 3.0f;
+    [JsonPropertyName("KnifeTrailTime")] public float KnifeTrailTime { get; set; } = 3.0f;
 
-    [JsonPropertyName("KnifeCooldown")]
-    public float KnifeCooldown { get; set; } = 3.0f;
+    [JsonPropertyName("KnifeCooldown")] public float KnifeCooldown { get; set; } = 3.0f;
 
-    [JsonPropertyName("KnifeFlags")]
-    public List<string> KnifeFlags { get; set; } = [];
+    [JsonPropertyName("KnifeFlags")] public List<string> KnifeFlags { get; set; } = [];
 
-    [JsonPropertyName("GameHUDChannel")]
-    public int GameHUDChannel { get; set; } = 1;
+    [JsonPropertyName("GameHUDChannel")] public int GameHUDChannel { get; set; } = 1;
 
-    [JsonPropertyName("ConfigVersion")]
-    public override int Version { get; set; } = 2;
+    [JsonPropertyName("ConfigVersion")] public override int Version { get; set; } = 2;
 }
 
 [MinimumApiVersion(342)]
@@ -66,21 +55,21 @@ public class Plugin : BasePlugin, IPluginConfig<PluginConfig>
     // Used for saving player knife cooldown, timers & hud
     private static TimeSpan _playerCooldownDuration = TimeSpan.FromSeconds(3);
     private readonly ConcurrentDictionary<int, DateTime> _playerCooldowns = new();
-    private CSTimer?[] _playerCooldownTimers = new CSTimer[65];
+    private readonly CSTimer?[] _playerCooldownTimers = new CSTimer[65];
     public static IGameHUDAPI? _hudapi;
 
 
     // Used for tracking player permission for throwing knives
-    private Dictionary<int, bool> _playerHasPerms = new();
+    private readonly Dictionary<int, bool> _playerHasPerms = [];
 
     // Used for tracking attacker active weapon when knife was thrown
-    private Dictionary<string, uint?> _knivesThrown = new();
+    private readonly Dictionary<string, uint?> _knivesThrown = [];
 
     // Used for tracking thrown knife amount
-    private Dictionary<int, int> _knivesAvailable = new();
+    private readonly Dictionary<int, int> _knivesAvailable = [];
 
     // Used for trails
-    private Dictionary<uint, Vector3> _knivesOldPos = new();
+    private readonly Dictionary<uint, Vector3> _knivesOldPos = [];
 
     // Used for thrown knife model
     private static Dictionary<ushort, string> KnifePaths { get; } = new()
@@ -111,39 +100,43 @@ public class Plugin : BasePlugin, IPluginConfig<PluginConfig>
 
     public void OnConfigParsed(PluginConfig config)
     {
-        Config = config;
-        if (config.Version != Config.Version)
+        this.Config = config;
+        if (config.Version != this.Config.Version)
         {
-            Logger.LogWarning("Configuration version mismatch (Expected: {0} | Current: {1})", Config.Version, config.Version);
+            this.Logger.LogWarning("Configuration version mismatch (Expected: {0} | Current: {1})", this.Config.Version,
+                config.Version);
         }
 
-        if (Config.KnifeTrailTime > 0)
+        if (this.Config.KnifeTrailTime > 0)
         {
-            RegisterListener<Listeners.OnTick>(OnTick);
+            this.RegisterListener<Listeners.OnTick>(this.OnTick);
         }
         else
         {
-            RemoveListener<Listeners.OnTick>(OnTick);
+            this.RemoveListener<Listeners.OnTick>(this.OnTick);
         }
 
-        _playerCooldownDuration = TimeSpan.FromSeconds(Config.KnifeCooldown);
+        _playerCooldownDuration = TimeSpan.FromSeconds(this.Config.KnifeCooldown);
     }
 
     public override void Load(bool hotReload)
     {
         base.Load(hotReload);
-        RegisterListener<Listeners.OnMapStart>(OnMapStart);
+        this.RegisterListener<Listeners.OnMapStart>(OnMapStart);
 
-        VirtualFunctions.CBaseEntity_TakeDamageOldFunc.Hook(OnTakeDamage, HookMode.Pre);
+        VirtualFunctions.CBaseEntity_TakeDamageOldFunc.Hook(this.OnTakeDamage, HookMode.Pre);
 
         if (hotReload)
         {
-            if (Config.KnifeAmount == -1) return;
+            if (this.Config.KnifeAmount == -1)
+            {
+                return;
+            }
 
             foreach (var player in Utilities.GetPlayers().Where(p => !p.IsBot && !p.IsHLTV))
             {
-                _knivesAvailable[player.Slot] = Config.KnifeAmount;
-                _playerHasPerms[player.Slot] = PlayerHasPerm(player, Config.KnifeFlags);
+                this._knivesAvailable[player.Slot] = this.Config.KnifeAmount;
+                this._playerHasPerms[player.Slot] = PlayerHasPerm(player, this.Config.KnifeFlags);
             }
         }
     }
@@ -151,9 +144,9 @@ public class Plugin : BasePlugin, IPluginConfig<PluginConfig>
     public override void Unload(bool hotReload)
     {
         base.Unload(hotReload);
-        RemoveListener<Listeners.OnMapStart>(OnMapStart);
+        this.RemoveListener<Listeners.OnMapStart>(OnMapStart);
 
-        VirtualFunctions.CBaseEntity_TakeDamageOldFunc.Unhook(OnTakeDamage, HookMode.Pre);
+        VirtualFunctions.CBaseEntity_TakeDamageOldFunc.Unhook(this.OnTakeDamage, HookMode.Pre);
     }
 
     public override void OnAllPluginsLoaded(bool hotReload)
@@ -166,60 +159,95 @@ public class Plugin : BasePlugin, IPluginConfig<PluginConfig>
         catch (Exception ex)
         {
             _hudapi = null;
-            Config.GameHUDChannel = -1;
-            Logger.LogWarning($"GameHUD API loading failed. Cooldown HUD will not work. {ex.Message}");
+            this.Config.GameHUDChannel = -1;
+            this.Logger.LogWarning($"GameHUD API loading failed. Cooldown HUD will not work. {ex.Message}");
         }
-
     }
 
     private HookResult OnTakeDamage(DynamicHook hook)
     {
         var entity = hook.GetParam<CEntityInstance>(0);
-        if (entity == null || !entity.IsValid || !entity.DesignerName.Equals("player"))
+        if (entity == null || !entity.IsValid || !entity.DesignerName.Equals("player", StringComparison.Ordinal))
+        {
             return HookResult.Continue;
+        }
 
         var pawn = entity.As<CCSPlayerPawn>();
         if (pawn == null || !pawn.IsValid)
+        {
             return HookResult.Continue;
+        }
 
         var player = pawn.OriginalController.Get();
         if (player == null || !player.IsValid)
+        {
             return HookResult.Continue;
+        }
 
         var damageInfo = hook.GetParam<CTakeDamageInfo>(1);
 
         var thrownKnife = damageInfo.Inflictor.Value;
 
-        if (thrownKnife == null || !thrownKnife.IsValid || !thrownKnife.DesignerName.Equals("prop_physics_override"))
+        if (thrownKnife == null || !thrownKnife.IsValid ||
+            !thrownKnife.DesignerName.Equals("prop_physics_override", StringComparison.Ordinal))
+        {
             return HookResult.Continue;
+        }
 
         if (thrownKnife.Entity == null || !thrownKnife.Entity.Name.StartsWith("tknife_") ||
-            !_knivesThrown.TryGetValue(thrownKnife.Entity.Name, out var activeWeapon)
-                || activeWeapon == null)
+            !this._knivesThrown.TryGetValue(thrownKnife.Entity.Name, out var activeWeapon)
+            || activeWeapon == null)
+        {
             return HookResult.Continue;
+        }
 
-        var hActiveWeapon = (CHandle<CBasePlayerWeapon>?)Activator.CreateInstance(typeof(CHandle<CBasePlayerWeapon>), activeWeapon);
+        var hActiveWeapon =
+            (CHandle<CBasePlayerWeapon>?)Activator.CreateInstance(typeof(CHandle<CBasePlayerWeapon>), activeWeapon);
 
         if (hActiveWeapon == null || !hActiveWeapon.IsValid)
+        {
             return HookResult.Continue;
+        }
 
         var attacker = thrownKnife.OwnerEntity.Value?.As<CCSPlayerPawn>();
 
         if (attacker == null || !attacker.IsValid)
+        {
             return HookResult.Continue;
+        }
+
+        var attackerController = attacker.OriginalController.Get();
+        if (attackerController == null || !attackerController.IsValid)
+        {
+            return HookResult.Continue;
+        }
 
         damageInfo.Inflictor.Raw = attacker.EntityHandle;
         damageInfo.Attacker.Raw = attacker.EntityHandle;
         damageInfo.Ability.Raw = (uint)activeWeapon;
         damageInfo.BitsDamageType = DamageTypes_t.DMG_SLASH;
-        damageInfo.Damage = Config.KnifeDamage;
+        damageInfo.Damage = this.Config.KnifeDamage;
+
+        if (this.Config.KnifeAmount != -1 && pawn.Health > 0 && damageInfo.Damage >= pawn.Health)
+        {
+            var attackerSlot = attackerController.Slot;
+            if (attackerSlot >= 0 && attackerSlot < 65)
+            {
+                this._knivesAvailable[attackerSlot] = this.Config.KnifeAmount;
+                this.Logger.LogInformation("Thrown knife kill. Refilled knives for slot {Slot}.", attackerSlot);
+            }
+            else
+            {
+                this.Logger.LogWarning("Thrown knife kill but invalid attacker slot {Slot}.", attackerSlot);
+            }
+        }
 
         thrownKnife.AcceptInput("Kill");
 
         return HookResult.Continue;
     }
 
-    public void OnMapStart(string map) { }
+    public static void OnMapStart(string map) { }
 
     public void OnTick()
     {
@@ -227,20 +255,30 @@ public class Plugin : BasePlugin, IPluginConfig<PluginConfig>
 
         foreach (var knife in knives)
         {
-            if (knife == null || !knife.IsValid || knife.AbsOrigin == null || knife.Entity == null || !knife.Entity.Name.StartsWith("tknife_") || !_knivesOldPos.TryGetValue(knife.Index, out var oldpos))
+            if (knife == null || !knife.IsValid || knife.AbsOrigin == null || knife.Entity == null ||
+                !knife.Entity.Name.StartsWith("tknife_") ||
+                !this._knivesOldPos.TryGetValue(knife.Index, out var oldpos))
+            {
                 continue;
+            }
 
             var knifePos = (Vector3)knife.AbsOrigin;
 
-            if (!ShouldUpdateTrail(knifePos, oldpos)) continue;
+            if (!this.ShouldUpdateTrail(knifePos, oldpos))
+            {
+                continue;
+            }
 
             var owner = knife.OwnerEntity.Value?.As<CCSPlayerPawn>();
 
             if (owner == null || !owner.IsValid)
+            {
                 continue;
+            }
 
-            CreateTrail(knifePos, oldpos, owner.TeamNum == 3 ? Color.Blue : Color.Red, lifetime: Config.KnifeTrailTime);
-            _knivesOldPos[knife.Index] = knifePos;
+            CreateTrail(knifePos, oldpos, owner.TeamNum == 3 ? Color.Blue : Color.Red,
+                lifetime: this.Config.KnifeTrailTime);
+            this._knivesOldPos[knife.Index] = knifePos;
         }
     }
 
@@ -249,11 +287,12 @@ public class Plugin : BasePlugin, IPluginConfig<PluginConfig>
     {
         CBasePlayerWeapon? activeWeapon;
         if (pressed.HasFlag(PlayerButtons.Attack) &&
-            _playerHasPerms.ContainsKey(player.Slot) && _playerHasPerms[player.Slot] &&
-                (activeWeapon = player.PlayerPawn.Value?.WeaponServices?.ActiveWeapon.Value) != null && activeWeapon.IsValid &&
-                    (activeWeapon.DesignerName.Contains("knife") || activeWeapon.DesignerName.Contains("bayonet")))
+            this._playerHasPerms.TryGetValue(player.Slot, out var value) && value &&
+            (activeWeapon = player.PlayerPawn.Value?.WeaponServices?.ActiveWeapon.Value) != null &&
+            activeWeapon.IsValid &&
+            (activeWeapon.DesignerName.Contains("knife") || activeWeapon.DesignerName.Contains("bayonet")))
         {
-            ThrowKnife(player, activeWeapon);
+            this.ThrowKnife(player, activeWeapon);
         }
     }
 
@@ -262,34 +301,46 @@ public class Plugin : BasePlugin, IPluginConfig<PluginConfig>
     {
         var player = @event.Userid;
 
-        if (player == null || !player.IsValid || player.IsBot || player.IsHLTV) return HookResult.Continue;
+        if (player == null || !player.IsValid || player.IsBot || player.IsHLTV)
+        {
+            return HookResult.Continue;
+        }
 
-        _playerHasPerms[player.Slot] = PlayerHasPerm(player, Config.KnifeFlags);
+        this._playerHasPerms[player.Slot] = PlayerHasPerm(player, this.Config.KnifeFlags);
         return HookResult.Continue;
     }
 
     [GameEventHandler]
     public HookResult OnRoundStart(EventRoundStart @event, GameEventInfo @info)
     {
-        _knivesOldPos.Clear();
-        _knivesThrown.Clear();
+        this._knivesOldPos.Clear();
+        this._knivesThrown.Clear();
 
-        if (Config.KnifeAmount == -1) return HookResult.Continue;
-
-        for (int i = 0; i < 65; i++)
+        if (this.Config.KnifeAmount == -1)
         {
-            _playerCooldownTimers[i]?.Kill();
+            return HookResult.Continue;
+        }
+
+        for (var i = 0; i < 65; i++)
+        {
+            this._playerCooldownTimers[i]?.Kill();
 
             var player = Utilities.GetPlayerFromSlot(i);
             if (player == null || !player.IsValid ||
                 player.Connected != PlayerConnectedState.PlayerConnected ||
-                player.IsBot || player.IsHLTV) continue;
+                player.IsBot || player.IsHLTV)
+            {
+                continue;
+            }
 
-            if (Config.GameHUDChannel != -1)
-                _hudapi?.Native_GameHUD_Remove(player, (byte)Config.GameHUDChannel);
+            if (this.Config.GameHUDChannel != -1)
+            {
+                _hudapi?.Native_GameHUD_Remove(player, (byte)this.Config.GameHUDChannel);
+            }
 
-            _knivesAvailable[player.Slot] = Config.KnifeAmount;
+            this._knivesAvailable[player.Slot] = this.Config.KnifeAmount;
         }
+
         return HookResult.Continue;
     }
 
@@ -297,27 +348,37 @@ public class Plugin : BasePlugin, IPluginConfig<PluginConfig>
     {
         var pawn = player.PlayerPawn.Value;
 
-        if (pawn == null) return;
-        if (Config.KnifeAmount != -1)
+        if (pawn == null)
         {
-            if (!_knivesAvailable.ContainsKey(player.Slot) || _knivesAvailable[player.Slot] == 0)
+            return;
+        }
+
+        if (this.Config.KnifeAmount != -1)
+        {
+            if (!this._knivesAvailable.TryGetValue(player.Slot, out var value) || value == 0)
             {
                 return;
             }
         }
 
-        if (_playerCooldowns.TryGetValue(player.Slot, out var lastTime))
+        if (this._playerCooldowns.TryGetValue(player.Slot, out var lastTime))
         {
             if (DateTime.UtcNow - lastTime < _playerCooldownDuration)
+            {
                 return;
+            }
         }
 
         ushort index;
 
         if (activeWeapon != null && activeWeapon.IsValid)
+        {
             index = activeWeapon.AttributeManager.Item.ItemDefinitionIndex;
+        }
         else
+        {
             index = (ushort)(player.TeamNum == 3 ? 42 : 59);
+        }
 
         if (!KnifePaths.TryGetValue(index, out var modelPath))
         {
@@ -326,7 +387,7 @@ public class Plugin : BasePlugin, IPluginConfig<PluginConfig>
 
         var entity = Utilities.CreateEntityByName<CPhysicsPropOverride>("prop_physics_override")!;
 
-        string entName = $"tknife_{Server.TickCount}";
+        var entName = $"tknife_{Server.TickCount}";
 
         entity.Entity!.Name = entName;
 
@@ -336,13 +397,13 @@ public class Plugin : BasePlugin, IPluginConfig<PluginConfig>
 
         entity.DispatchSpawn();
 
-        entity.Elasticity = Config.KnifeElasticity;
+        entity.Elasticity = this.Config.KnifeElasticity;
         entity.OwnerEntity.Raw = player.PlayerPawn.Raw;
 
         entity.Collision.CollisionGroup = (byte)CollisionGroup.COLLISION_GROUP_DEFAULT;
 
-        float angleYaw = pawn.EyeAngles.Y * (float)Math.PI / 180f;
-        float anglePitch = pawn.EyeAngles.X * (float)Math.PI / 180f;
+        var angleYaw = pawn.EyeAngles.Y * (float)Math.PI / 180f;
+        var anglePitch = pawn.EyeAngles.X * (float)Math.PI / 180f;
 
         Vector3 rotation = (Vector3)pawn.AbsRotation!;
 
@@ -352,47 +413,48 @@ public class Plugin : BasePlugin, IPluginConfig<PluginConfig>
             (float)-Math.Sin(anglePitch)
         );
 
-        float spawnDistance = 64.0f;
+        var spawnDistance = 64.0f;
         Vector3 spawnPosition = new Vector3(
-            pawn.AbsOrigin!.X + forward.X * spawnDistance,
-            pawn.AbsOrigin.Y + forward.Y * spawnDistance + 5,
-            pawn.AbsOrigin.Z + forward.Z * spawnDistance + 50.0f
+            pawn.AbsOrigin!.X + (forward.X * spawnDistance),
+            pawn.AbsOrigin.Y + (forward.Y * spawnDistance) + 5,
+            pawn.AbsOrigin.Z + (forward.Z * spawnDistance) + 50.0f
         );
 
-        float throwStrength = Config.KnifeVelocity;
+        var throwStrength = this.Config.KnifeVelocity;
         Vector3 velocity = new Vector3(
             forward.X * throwStrength,
             forward.Y * throwStrength,
-            forward.Z * throwStrength + 300.0f
+            (forward.Z * throwStrength) + 300.0f
         );
 
         entity.Teleport(spawnPosition, rotation, velocity);
 
-        _knivesOldPos[entity.Index] = spawnPosition;
-        _knivesThrown[entName] = activeWeapon?.EntityHandle.Raw ?? null;
+        this._knivesOldPos[entity.Index] = spawnPosition;
+        this._knivesThrown[entName] = activeWeapon?.EntityHandle.Raw ?? null;
 
-        entity.AddEntityIOEvent("Kill", entity, delay: Config.KnifeLifetime);
+        entity.AddEntityIOEvent("Kill", entity, delay: this.Config.KnifeLifetime);
 
-        int slot = player.Slot;
+        var slot = player.Slot;
 
-        _playerCooldowns[slot] = DateTime.UtcNow;
-        _playerCooldowns.TryGetValue(slot, out lastTime);
+        this._playerCooldowns[slot] = DateTime.UtcNow;
+        this._playerCooldowns.TryGetValue(slot, out lastTime);
 
-        if (_hudapi != null && Config.GameHUDChannel != -1)
+        if (_hudapi != null && this.Config.GameHUDChannel != -1)
         {
-            _playerCooldownTimers[slot] = AddTimer(0.1f, () =>
+            this._playerCooldownTimers[slot] = this.AddTimer(0.1f, () =>
             {
                 if (player == null || !player.IsValid || player.Connected != PlayerConnectedState.PlayerConnected)
                 {
-                    _playerCooldownTimers[slot]?.Kill();
+                    this._playerCooldownTimers[slot]?.Kill();
                     return;
                 }
-                float cdLeft = Config.KnifeCooldown - (float)(DateTime.UtcNow - lastTime).TotalSeconds;
+
+                var cdLeft = this.Config.KnifeCooldown - (float)(DateTime.UtcNow - lastTime).TotalSeconds;
 
                 if (cdLeft <= 0)
                 {
-                    _hudapi.Native_GameHUD_Remove(player, (byte)Config.GameHUDChannel);
-                    _playerCooldownTimers[slot]?.Kill();
+                    _hudapi.Native_GameHUD_Remove(player, (byte)this.Config.GameHUDChannel);
+                    this._playerCooldownTimers[slot]?.Kill();
                     return;
                 }
 
@@ -401,21 +463,29 @@ public class Plugin : BasePlugin, IPluginConfig<PluginConfig>
                 const float fZEntity = 7.0f;
                 const int iSize = 54;
 
-                _hudapi.Native_GameHUD_SetParams(player, (byte)Config.GameHUDChannel, fXEntity, fYEntity, fZEntity, Color.Cyan, iSize, "Verdana", iSize / 7000.0f);
-                _hudapi.Native_GameHUD_Show(player, (byte)Config.GameHUDChannel, $"Cooldown left: {cdLeft:F2}", 0.2f);
+                _hudapi.Native_GameHUD_SetParams(player, (byte)this.Config.GameHUDChannel, fXEntity, fYEntity, fZEntity,
+                    Color.Cyan, iSize, "Verdana", iSize / 7000.0f);
+                _hudapi.Native_GameHUD_Show(player, (byte)this.Config.GameHUDChannel, $"Cooldown left: {cdLeft:F2}",
+                    0.2f);
             }, TimerFlags.REPEAT);
         }
 
-        if (Config.KnifeAmount == -1) return;
+        if (this.Config.KnifeAmount == -1)
+        {
+            return;
+        }
 
-        _knivesAvailable[player.Slot] -= 1;
+        this._knivesAvailable[player.Slot] -= 1;
     }
 
-    public void CreateTrail(Vector3 position, Vector3 endposition, Color color, float width = 1.0f, float lifetime = 3.0f)
+    public static void CreateTrail(Vector3 position, Vector3 endposition, Color color, float width = 1.0f,
+        float lifetime = 3.0f)
     {
         var beam = Utilities.CreateEntityByName<CEnvBeam>("env_beam");
         if (beam == null)
+        {
             return;
+        }
 
         beam.Width = width;
         beam.Render = color;
@@ -430,25 +500,23 @@ public class Plugin : BasePlugin, IPluginConfig<PluginConfig>
         beam.AddEntityIOEvent("Kill", beam, delay: lifetime);
     }
 
-    public bool ShouldUpdateTrail(Vector3 position, Vector3 endposition, float minDistance = 5.0f)
-    {
-        return Distance(position, endposition) > minDistance;
-    }
+    public bool ShouldUpdateTrail(Vector3 position, Vector3 endposition, float minDistance = 5.0f) =>
+        Distance(position, endposition) > minDistance;
 
-    public float Distance(Vector3 vector1, Vector3 vector2)
+    public static float Distance(Vector3 vector1, Vector3 vector2)
     {
-        float dx = vector2.X - vector1.X;
-        float dy = vector2.Y - vector1.Y;
-        float dz = vector2.Z - vector1.Z;
+        var dx = vector2.X - vector1.X;
+        var dy = vector2.Y - vector1.Y;
+        var dz = vector2.Z - vector1.Z;
 
-        return (float)Math.Sqrt(dx * dx + dy * dy + dz * dz);
+        return (float)Math.Sqrt((dx * dx) + (dy * dy) + (dz * dz));
     }
 
     public static bool PlayerHasPerm(CCSPlayerController player, List<string> flags)
     {
-        bool access = false;
+        var access = false;
 
-        if (flags.Count() == 0)
+        if (flags.Count == 0)
         {
             access = true;
         }
@@ -456,13 +524,15 @@ public class Plugin : BasePlugin, IPluginConfig<PluginConfig>
         {
             foreach (var flag in flags)
             {
-                if (string.IsNullOrWhiteSpace(flag) || AdminManager.PlayerHasPermissions(player, flag) || AdminManager.PlayerInGroup(player, flag))
+                if (string.IsNullOrWhiteSpace(flag) || AdminManager.PlayerHasPermissions(player, flag) ||
+                    AdminManager.PlayerInGroup(player, flag))
                 {
                     access = true;
                     break;
                 }
             }
         }
+
         return access;
     }
 }
